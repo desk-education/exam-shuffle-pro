@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Questionnaire Randomizer & Exporter</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Mammoth.js for Word (.docx) Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <!-- html-docx-js for DOCX Exporting -->
+    <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!--
+    <style>
+
+    </style>
+-->
+    <!-- 1. Code for External CSS -->
+    <link rel="stylesheet" href="style.css">
+
+    
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Navigation Header -->
+    <header id="mainHeader" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-lg sticky top-0 z-40 no-print border-b-2 border-indigo-500/40 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-xl shadow-md shadow-indigo-500/30">
+                    <i data-lucide="shuffle" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-100 to-indigo-300">ExamShuffle Pro</h1>
+                    <p class="text-xs font-medium text-indigo-300/80">Test Questionnaire Randomizer & Exporter</p>
+                </div>
+            </div>
+
+            <!-- Global Action Stats / Indicators -->
+            <div class="flex items-center space-x-3 text-xs sm:text-sm">
+                <div class="hidden sm:flex items-center space-x-2 bg-indigo-900/60 border-2 border-indigo-500/50 px-3.5 py-1.5 rounded-full shadow-inner">
+                    <i data-lucide="help-circle" class="w-4 h-4 text-indigo-300"></i>
+                    <span class="text-slate-200">Items: <strong id="globalItemCount" class="text-amber-300 font-extrabold text-sm">0</strong></span>
+                </div>
+                <!-- Full-screen toggle button placed beside the item counter for quick classroom access. -->
+                <button id="fullscreenToggleButton" onclick="toggleFullScreen()" class="flex items-center space-x-1.5 bg-sky-700 hover:bg-sky-600 border border-sky-400/60 px-2.5 py-2 rounded-lg text-xs font-bold text-white shadow transition" title="Enter or exit full-screen mode" aria-label="Toggle full-screen mode">
+                    <i id="fullscreenToggleIcon" data-lucide="maximize" class="w-4 h-4"></i>
+                    <span id="fullscreenToggleLabel" class="hidden lg:inline">Full Screen</span>
+                </button>
+                <!-- Full user guide button provides an in-app help reference without leaving the application. -->
+                <button onclick="toggleUserGuide()" class="flex items-center space-x-1.5 bg-violet-700 hover:bg-violet-600 border border-violet-400/60 px-2.5 py-2 rounded-lg text-xs font-bold text-white shadow transition" title="Open the complete user guide">
+                    <i data-lucide="book-open" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">User Guide</span>
+                </button>
+                <div class="hidden md:flex items-center space-x-2 bg-emerald-950/60 border-2 border-emerald-500/50 px-3.5 py-1.5 rounded-full shadow-inner">
+                    <i data-lucide="layers" class="w-4 h-4 text-emerald-400"></i>
+                    <span class="text-slate-200">Active Key: <strong id="globalActiveVersion" class="text-emerald-300 font-extrabold text-sm">Version A</strong></span>
+                </div>
+                <button onclick="clearCache()" class="flex items-center space-x-2 bg-rose-700 hover:bg-rose-600 border border-rose-400/60 px-3 py-2 rounded-lg text-xs font-bold text-white shadow transition" title="Clear saved questions, exam details, and generated versions">
+                    <i data-lucide="database" class="w-4 h-4"></i>
+                    <span>Clear Cache</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs Bar with High-Visibility Scrollbar & Conspicuous Buttons -->
+    <div id="mainNavBar" class="bg-slate-900 border-b-4 border-indigo-600 shadow-xl no-print sticky top-16 z-30 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-2">
+            <!-- Scrollable Tabs Track with Bold Styling -->
+            <nav class="flex space-x-2 sm:space-x-3 overflow-x-auto pb-1.5 pt-0.5 items-center flex-1" id="mainTabs" aria-label="Main Navigation">
+                
+                <button onclick="switchTab('tab-header')" id="btn-tab-header" class="tab-btn flex items-center space-x-2.5 px-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl whitespace-nowrap transition-all duration-200 bg-indigo-600 text-white shadow-md shadow-indigo-600/40 ring-2 ring-indigo-400">
+                    <i data-lucide="file-text" class="w-4 h-4 text-white"></i>
+                    <span>1. Exam Details</span>
+                </button>
+
+                <button onclick="switchTab('tab-upload')" id="btn-tab-upload" class="tab-btn flex items-center space-x-2.5 px-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl whitespace-nowrap transition-all duration-200 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700">
+                    <i data-lucide="upload-cloud" class="w-4 h-4 text-blue-400"></i>
+                    <span>2. Upload / Input Questions</span>
+                </button>
+
+                <button onclick="switchTab('tab-edit')" id="btn-tab-edit" class="tab-btn flex items-center space-x-2.5 px-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl whitespace-nowrap transition-all duration-200 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700">
+                    <i data-lucide="edit-3" class="w-4 h-4 text-emerald-400"></i>
+                    <span>3. Review & Edit Items</span>
+                </button>
+
+                <button onclick="switchTab('tab-randomize')" id="btn-tab-randomize" class="tab-btn flex items-center space-x-2.5 px-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl whitespace-nowrap transition-all duration-200 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700">
+                    <i data-lucide="sliders" class="w-4 h-4 text-violet-400"></i>
+                    <span>4. Randomize & Export</span>
+                </button>
+
+                <button onclick="switchTab('tab-classroom')" id="btn-tab-classroom" class="tab-btn flex items-center space-x-2.5 px-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl whitespace-nowrap transition-all duration-200 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700">
+                    <i data-lucide="presentation" class="w-4 h-4 text-cyan-400"></i>
+                    <span>5. Classroom Mode</span>
+                </button>
+
+                <button onclick="switchTab('tab-peer-checking')" id="btn-tab-peer-checking" class="tab-btn flex items-center space-x-2.5 px-4 py-2.5 text-xs sm:text-sm font-extrabold rounded-xl whitespace-nowrap transition-all duration-200 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md hover:from-amber-400 hover:to-amber-500 border-2 border-amber-300">
+                    <i data-lucide="check-square" class="w-4.5 h-4.5 text-slate-950"></i>
+                    <span>6. Peer Checking Mode</span>
+                </button>
+
+                <button onclick="switchTab('tab-quiz-bee')" id="btn-tab-quiz-bee" class="tab-btn flex items-center space-x-2.5 px-4 py-2.5 text-xs sm:text-sm font-extrabold rounded-xl whitespace-nowrap transition-all duration-200 bg-gradient-to-r from-fuchsia-600 to-purple-700 text-white shadow-md hover:from-fuchsia-500 hover:to-purple-600 border-2 border-fuchsia-300">
+                    <i data-lucide="trophy" class="w-4 h-4 text-white"></i>
+                    <span>7. Quiz Bee Challenge</span>
+                </button>
+            </nav>
+
+            <!-- Toggle Arrow Button to Hide/Show Header and Navigation Bar -->
+            <button onclick="toggleHeaderNav()" id="btnToggleNav" class="p-2 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white rounded-xl border border-indigo-500/50 transition flex items-center justify-center shrink-0 shadow-md" title="Toggle Navigation Bar & Header">
+                <i id="toggleNavIcon" data-lucide="chevron-up" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- TAB 1: HEADER & INSTRUCTIONS -->
+        <div id="tab-header" class="tab-content block space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <div class="flex items-center space-x-3 mb-6">
+                    <div class="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                        <i data-lucide="heading" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-900">Exam Header Information</h2>
+                        <p class="text-xs text-slate-500">Specify school details, exam title, and course specifics for the printed header.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">School / University Name</label>
+                        <input type="text" id="inputSchoolName" value="ST. JUDE ACADEMIC INSTITUTE" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Department / College</label>
+                        <input type="text" id="inputDepartment" value="Department of Secondary Education" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Exam Title</label>
+                        <input type="text" id="inputExamTitle" value="MIDTERM EXAMINATION IN SCIENCE 10" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Subject / Course Code</label>
+                        <input type="text" id="inputSubject" value="SCI-101: General Biology" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Teacher / Instructor Name</label>
+                        <input type="text" id="inputTeacher" value="Prof. Alex Mercer, M.Sc." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Term / School Year</label>
+                        <input type="text" id="inputTerm" value="1st Semester | S.Y. 2026-2027" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">General Instructions</label>
+                    <textarea id="inputInstructions" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">Read each item carefully. Select or write the best answer for each question. Strictly NO ERASURES allowed on the final answer sheet. Manage your time effectively.</textarea>
+                </div>
+            </div>
+
+            <!-- Live Header Preview -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <div class="flex flex-col gap-4 mb-4">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Header Preview</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        <div>
+                            <label for="inputLeftLogoUrl" class="block text-xs font-bold text-slate-600 mb-1">Left-Side Logo (Image Link)</label>
+                            <input type="url" id="inputLeftLogoUrl" placeholder="https://example.com/left-logo.png" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm" aria-describedby="leftLogoUrlHelp">
+                            <p id="leftLogoUrlHelp" class="text-[11px] text-slate-500 mt-1">Paste a direct, publicly accessible image URL. This logo sits close to the header text.</p>
+                        </div>
+                        <div>
+                            <label for="inputLogoUrl" class="block text-xs font-bold text-slate-600 mb-1">Right-Side Logo (Image Link)</label>
+                            <input type="url" id="inputLogoUrl" placeholder="https://example.com/right-logo.png" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm" aria-describedby="logoUrlHelp">
+                            <p id="logoUrlHelp" class="text-[11px] text-slate-500 mt-1">Paste a direct, publicly accessible image URL (PNG, JPG, SVG, or WebP).</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 sm:p-6 border border-slate-300 rounded-lg bg-slate-50 font-serif text-slate-900">
+                    <div class="grid grid-cols-[4rem_minmax(0,1fr)_4rem] sm:grid-cols-[5rem_minmax(0,1fr)_5rem] gap-2 sm:gap-3 items-start">
+                        <div class="w-16 sm:w-20 flex justify-start">
+                            <img id="prevLeftLogo" src="" alt="Left school logo preview" class="hidden max-w-full max-h-20 sm:max-h-24 object-contain rounded-md" referrerpolicy="no-referrer">
+                            <div id="prevLeftLogoPlaceholder" class="w-14 h-14 sm:w-16 sm:h-16 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center text-[9px] text-slate-400 text-center p-1 font-sans">LEFT<br>LOGO</div>
+                        </div>
+                        <div class="text-center space-y-1 min-w-0">
+                    <h2 id="prevSchool" class="font-bold text-base uppercase">ST. JUDE ACADEMIC INSTITUTE</h2>
+                    <p id="prevDept" class="text-xs italic text-slate-600">Department of Secondary Education</p>
+                    <h1 id="prevTitle" class="font-bold text-lg mt-2 underline">MIDTERM EXAMINATION IN SCIENCE 10</h1>
+                    <p id="prevSubj" class="text-sm font-semibold">SCI-101: General Biology</p>
+                    <p id="prevTerm" class="text-xs text-slate-500">1st Semester | S.Y. 2026-2027</p>
+                        </div>
+                        <div class="w-16 sm:w-20 min-w-0 flex justify-end">
+                            <img id="prevLogo" src="" alt="Right-side school logo preview" class="hidden max-w-full max-h-20 sm:max-h-24 object-contain rounded-md" referrerpolicy="no-referrer">
+                            <div id="prevLogoPlaceholder" class="w-14 h-14 sm:w-16 sm:h-16 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center text-[9px] text-slate-400 text-center p-1 font-sans">RIGHT<br>LOGO</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 text-left text-xs mt-4 pt-3 border-t border-slate-300 font-sans">
+                        <div>
+                            <p><strong>Name:</strong> ____________________________________</p>
+                            <p class="mt-2"><strong>Grade & Section:</strong> ________________________</p>
+                        </div>
+                        <div class="text-right">
+                            <p><strong>Date:</strong> ____________________</p>
+                            <p class="mt-2"><strong>Score:</strong> ______ / <span id="prevTotalItems">0</span></p>
+                        </div>
+                    </div>
+                    <div class="text-left text-xs font-sans mt-3 pt-2 border-t border-slate-200">
+                        <p><strong>Instructor:</strong> <span id="prevTeacher">Prof. Alex Mercer, M.Sc.</span></p>
+                        <p class="mt-1 italic"><strong>Instructions:</strong> <span id="prevInstructions">Read each item carefully...</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: UPLOAD & PARSE QUESTIONS -->
+        <div id="tab-upload" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Option A: File Upload -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center space-x-3 mb-4">
+                            <div class="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                                <i data-lucide="file-up" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-semibold text-slate-900">Upload Test Document</h2>
+                                <p class="text-xs text-slate-500">Upload a Microsoft Word (.docx) or Text file (.txt)</p>
+                            </div>
+                        </div>
+
+                        <div id="dropZone" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-indigo-500 transition cursor-pointer bg-slate-50 hover:bg-indigo-50/30">
+                            <i data-lucide="file-text" class="w-12 h-12 text-slate-400 mx-auto mb-3"></i>
+                            <p class="text-sm font-medium text-slate-700">Drag & drop your test file here, or <span class="text-indigo-600 underline">browse</span></p>
+                            <p class="text-xs text-slate-400 mt-1">Supports Microsoft Word (.docx) and Plain Text (.txt)</p>
+                            <input type="file" id="fileInput" accept=".docx,.txt" class="hidden">
+                        </div>
+                    </div>
+
+                    <div class="mt-4 p-3 bg-indigo-50 rounded-lg text-xs text-indigo-800 border border-indigo-100 flex items-start space-x-2">
+                        <i data-lucide="info" class="w-4 h-4 text-indigo-600 shrink-0 mt-0.5"></i>
+                        <span><strong>Tip:</strong> Ensure items are numbered (e.g., 1., 2.) and choices begin with letters (e.g., A., B., C., D.). Correct answers marked with an asterisk (*A.), `[Ans: A]`, or `Answer: B` will be detected automatically!</span>
+                    </div>
+                </div>
+
+                <!-- Option B: Direct Text Paste -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                            <i data-lucide="clipboard-text" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900">Paste Plain Text Questionnaire</h2>
+                            <p class="text-xs text-slate-500">Paste your raw questionnaire text directly into the box</p>
+                        </div>
+                    </div>
+
+                    <textarea id="rawTextPaste" rows="9" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs font-mono" placeholder="1. What is the primary organ of photosynthesis in plants?
+A. Root
+*B. Leaf
+C. Stem
+D. Flower
+
+2. Light travels faster than sound.
+*A. True
+B. False
+
+3. What gas do humans exhale?
+Answer: Carbon Dioxide"></textarea>
+
+                    <button onclick="parseRawText()" class="mt-4 w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm flex items-center justify-center space-x-2 transition shadow">
+                        <i data-lucide="wand-2" class="w-4 h-4"></i>
+                        <span>Auto-Parse & Load Questions</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Formatting Guide -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Supported Formatting Syntax</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <p class="font-bold text-slate-800 border-b pb-1 mb-2">Multiple Choice</p>
+                        <p class="text-slate-600">1. Question text here<br>A. Option 1<br>*B. Correct Option<br>C. Option 3<br>D. Option 4</p>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <p class="font-bold text-slate-800 border-b pb-1 mb-2">True or False</p>
+                        <p class="text-slate-600">2. Earth is the third planet from the sun.<br>*A. True<br>B. False</p>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <p class="font-bold text-slate-800 border-b pb-1 mb-2">Identification / Short Answer</p>
+                        <p class="text-slate-600">3. The process of cell division is called ___.<br>Answer: Mitosis</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: REVIEW & EDIT QUESTIONS -->
+        <div id="tab-edit" class="tab-content hidden space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Question Item Manager</h2>
+                    <p class="text-xs text-slate-500">Edit items, flag correct answers, add choices, or reorder items manually.</p>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <button onclick="addNewQuestion()" class="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-semibold rounded-lg flex items-center space-x-1 border border-indigo-200 transition">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Add Question</span>
+                    </button>
+                    <button onclick="clearAllQuestions()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold rounded-lg flex items-center space-x-1 border border-rose-200 transition">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>Clear All</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- List of Parsed Items -->
+            <div id="questionsContainer" class="space-y-4">
+                <div class="text-center py-12 bg-white rounded-xl border border-slate-200">
+                    <i data-lucide="help-circle" class="w-12 h-12 text-slate-300 mx-auto mb-2"></i>
+                    <p class="text-sm font-medium text-slate-600">No questions loaded yet.</p>
+                    <p class="text-xs text-slate-400 mt-1">Upload a Word file or paste text in Tab 2 to get started.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: RANDOMIZE & EXPORT -->
+        <div id="tab-randomize" class="tab-content hidden space-y-6">
+            <!-- Controls Bar -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+                <div class="flex items-center justify-between border-b pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Randomization & Export Engine</h2>
+                        <p class="text-xs text-slate-500">Generate randomized exam sets (Versions A, B, C, etc.) and export or print.</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="randomizeCurrentSet()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center space-x-2 shadow transition">
+                            <i data-lucide="shuffle" class="w-4 h-4"></i>
+                            <span>Shuffle Current Set</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <!-- Toggle Choice Shuffle -->
+                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <div>
+                            <span class="font-semibold text-slate-700 block">Shuffle Options/Choices</span>
+                            <span class="text-slate-400 text-[11px]">Randomize A, B, C, D order</span>
+                        </div>
+                        <input type="checkbox" id="toggleShuffleChoices" checked class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
+                    </div>
+
+                    <!-- Version Generator -->
+                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <div>
+                            <span class="font-semibold text-slate-700 block">Generate Multiple Versions</span>
+                            <span class="text-slate-400 text-[11px]">Creates independent shuffled sets</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <select id="selectVersionCount" class="border border-slate-300 rounded px-2 py-1 text-xs">
+                                <option value="1">1 Version</option>
+                                <option value="2">2 Versions (A, B)</option>
+                                <option value="3">3 Versions (A, B, C)</option>
+                                <option value="4">4 Versions (A, B, C, D)</option>
+                            </select>
+                            <button onclick="generateMultipleVersions()" class="px-2 py-1 bg-slate-800 text-white rounded font-medium hover:bg-slate-700">Generate</button>
+                        </div>
+                    </div>
+
+                    <!-- Answer Key Toggle -->
+                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <div>
+                            <span class="font-semibold text-slate-700 block">Include Answer Key</span>
+                            <span class="text-slate-400 text-[11px]">Appends answer key at the bottom</span>
+                        </div>
+                        <input type="checkbox" id="toggleIncludeAnswerKey" checked onchange="renderExamPreview()" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Generated Versions Nav Tabs -->
+                <div id="versionTabsContainer" class="flex space-x-2 pt-2 overflow-x-auto border-t border-slate-100">
+                    <!-- Tabs rendered dynamically -->
+                </div>
+            </div>
+
+            <!-- Export Bar -->
+            <div class="flex flex-wrap items-center justify-between gap-3 bg-indigo-900 text-white p-4 rounded-xl shadow-md">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="download" class="w-5 h-5 text-indigo-300"></i>
+                    <span class="text-xs font-semibold">Export Active Exam Paper:</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="window.print()" class="px-3 py-2 bg-white text-slate-900 hover:bg-slate-100 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
+                        <i data-lucide="printer" class="w-4 h-4"></i>
+                        <span>Direct Print / PDF</span>
+                    </button>
+                    <button onclick="exportToWord()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
+                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                        <span>Export MS Word (.docx)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Live Printable Document Sheet Preview -->
+            <div class="bg-slate-200 p-4 sm:p-8 rounded-xl flex justify-center overflow-x-auto">
+                <div id="printablePaper" class="exam-paper bg-white shadow-xl border border-slate-300 rounded-sm p-8 sm:p-12 w-full max-w-3xl min-h-[1050px] font-serif text-slate-900 leading-relaxed text-sm">
+                    <!-- Printed header & questions content dynamically rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: CLASSROOM PRESENTATION MODE -->
+        <div id="tab-classroom" class="tab-content hidden space-y-6">
+            <div class="bg-slate-900 text-white rounded-2xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+                <!-- Top Toolbar -->
+                <div class="flex flex-col sm:flex-row items-center justify-between border-b-2 border-indigo-500/40 pb-5 mb-6 gap-4 bg-slate-800/60 p-4 rounded-xl border border-slate-700">
+                    <div class="flex items-center space-x-3">
+                        <span id="presentationVersionTag" class="px-3.5 py-1.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs font-black rounded-full uppercase tracking-wider shadow-md border border-indigo-300/40">Version A</span>
+                        <h2 class="text-base font-bold text-slate-100" id="presentationTitle">Science Midterm Examination</h2>
+                    </div>
+
+                    <!-- Classroom Controls: Font Size Scaling & Timer -->
+                    <div class="flex flex-wrap items-center justify-end gap-3">
+                        <!-- Font Size Adjustment Control -->
+                        <div class="flex items-center space-x-2 bg-slate-950 px-3.5 py-2 rounded-xl border-2 border-indigo-500/60 text-xs shadow-md">
+                            <i data-lucide="type" class="w-4 h-4 text-indigo-400"></i>
+                            <span class="text-slate-200 font-bold">Text Size:</span>
+                            <button onclick="changeClassroomFontSize(-2)" title="Decrease Font Size" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-100 transition font-black text-xs border border-slate-600">A-</button>
+                            <span id="fontSizeDisplay" class="font-mono text-indigo-300 font-extrabold px-1.5 min-w-[2.5rem] text-center text-sm">24px</span>
+                            <button onclick="changeClassroomFontSize(2)" title="Increase Font Size" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-100 transition font-black text-xs border border-slate-600">A+</button>
+                            <!-- Presets -->
+                            <div class="flex space-x-1 ml-1 border-l-2 border-slate-700 pl-2">
+                                <button onclick="setClassroomFontSize(18)" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 font-semibold border border-slate-700">Default</button>
+                                <button onclick="setClassroomFontSize(28)" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 font-semibold border border-slate-700">Large</button>
+                                <button onclick="setClassroomFontSize(38)" class="px-2 py-1 rounded-md bg-indigo-600 hover:bg-indigo-500 text-[11px] text-white font-extrabold shadow">X-Large</button>
+                            </div>
+                        </div>
+
+                        <!-- Countdown Timer Control -->
+                        <div class="flex items-center space-x-3 bg-slate-950 px-3.5 py-2 rounded-xl border-2 border-amber-500/60 shadow-md">
+                            <i data-lucide="clock" class="w-4.5 h-4.5 text-amber-400"></i>
+                            <span id="timerDisplay" class="font-mono text-xl font-black tracking-widest text-amber-300">00:00:00</span>
+                            <div class="flex items-center space-x-1">
+                                <button onclick="startTimer()" title="Start Timer" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-emerald-400 transition"><i data-lucide="play" class="w-4 h-4"></i></button>
+                                <button onclick="pauseTimer()" title="Pause Timer" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-amber-400 transition"><i data-lucide="pause" class="w-4 h-4"></i></button>
+                                <button onclick="resetTimer()" title="Reset Timer" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-rose-400 transition"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide Question Display Card -->
+                <div class="min-h-[360px] flex flex-col justify-between bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-6 sm:p-8 shadow-xl">
+                    <div>
+                        <div class="flex items-center justify-between text-xs text-indigo-300 font-bold mb-4 bg-slate-900/60 px-4 py-2 rounded-xl border border-slate-700/80">
+                            <span id="presentationItemIndex" class="text-sm text-indigo-200">Question 1 of 10</span>
+                            <span id="presentationItemType" class="uppercase tracking-wider px-2.5 py-1 bg-indigo-950 text-indigo-300 rounded-lg border border-indigo-700/60 font-extrabold">Multiple Choice</span>
+                        </div>
+
+                        <!-- Question Text -->
+                        <h3 id="presentationQuestionText" class="font-medium text-slate-100 leading-relaxed mb-6 transition-all duration-150" style="font-size: 24px;">
+                            Loading item...
+                        </h3>
+
+                        <!-- Choices List -->
+                        <div id="presentationChoicesList" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                            <!-- Choices rendered dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Slide Navigation Controls Bar -->
+                    <div class="flex items-center justify-between pt-6 border-t-2 border-slate-700/80 mt-6 bg-slate-900/50 p-3 rounded-xl">
+                        <button onclick="prevSlide()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs sm:text-sm rounded-xl flex items-center space-x-2 transition border-2 border-slate-600 shadow-md active:scale-95">
+                            <i data-lucide="chevron-left" class="w-5 h-5 text-indigo-400"></i>
+                            <span>Previous Question</span>
+                        </button>
+
+                        <div class="text-xs text-slate-400 font-mono hidden sm:block bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                            Keyboard: &larr; Left / Right &rarr; Arrow Keys
+                        </div>
+
+                        <button onclick="nextSlide()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs sm:text-sm rounded-xl flex items-center space-x-2 transition shadow-lg shadow-indigo-600/30 active:scale-95">
+                            <span>Next Question</span>
+                            <i data-lucide="chevron-right" class="w-5 h-5 text-white"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: PEER CHECKING MODE -->
+        <div id="tab-peer-checking" class="tab-content hidden space-y-6">
+            <div class="bg-slate-950 text-amber-50 rounded-2xl p-6 sm:p-10 shadow-2xl border-2 border-amber-500/50 relative">
+                <!-- Top Notice Banner for Students -->
+                <div class="bg-gradient-to-r from-amber-950 to-slate-900 border-2 border-amber-500/70 rounded-2xl p-5 mb-6 flex items-center justify-between flex-wrap gap-4 shadow-xl">
+                    <div class="flex items-center space-x-4">
+                        <div class="p-3 bg-amber-500 text-slate-950 rounded-xl font-black shadow-lg shadow-amber-500/30">
+                            <i data-lucide="users" class="w-7 h-7"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-amber-300 font-black text-base sm:text-lg tracking-wide">PEER CHECKING INSTRUCTIONS FOR STUDENTS</h3>
+                            <p class="text-amber-100/90 text-xs sm:text-sm mt-0.5">Exchange answer sheets with a classmate. Write <span class="text-amber-300 font-extrabold underline decoration-amber-400 decoration-2">"Checked by: [Your Name]"</span> at the top of the sheet.</p>
+                        </div>
+                    </div>
+
+                    <!-- Version Selector for Checking -->
+                    <div class="flex items-center space-x-2.5 bg-slate-900 px-3.5 py-2 rounded-xl border border-amber-500/60 shadow">
+                        <span class="text-xs text-amber-300 font-extrabold uppercase tracking-wider">Active Key:</span>
+                        <select id="peerCheckingVersionSelect" onchange="switchPeerCheckingVersion(this.value)" class="bg-amber-950 border-2 border-amber-500 text-amber-100 text-xs font-black rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-amber-400 cursor-pointer shadow-inner">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Peer Checking Toolbar -->
+                <div class="flex flex-col sm:flex-row items-center justify-between border-b-2 border-amber-800/60 pb-5 mb-6 gap-4 bg-amber-950/40 p-4 rounded-xl border border-amber-800/50">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="setPeerCheckingViewMode('slide')" id="btnPeerModeSlide" class="px-4 py-2 text-xs font-black rounded-xl bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/30 transition transform active:scale-95">
+                            Guided Question-by-Question
+                        </button>
+                        <button onclick="setPeerCheckingViewMode('grid')" id="btnPeerModeGrid" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-200 border-2 border-amber-700/60 transition">
+                            Show All Answer Keys Grid
+                        </button>
+                    </div>
+
+                    <!-- Peer Checking Text Scaling Controls -->
+                    <div class="flex items-center space-x-2 bg-slate-900 px-3.5 py-2 rounded-xl border-2 border-amber-500/60 text-xs shadow-md">
+                        <i data-lucide="type" class="w-4 h-4 text-amber-400"></i>
+                        <span class="text-amber-200 font-bold">Text Size:</span>
+                        <button onclick="changePeerFontSize(-2)" title="Decrease Font Size" class="p-1.5 bg-amber-950 hover:bg-amber-900 rounded-lg text-amber-100 transition font-black text-xs border border-amber-700">A-</button>
+                        <span id="peerFontSizeDisplay" class="font-mono text-amber-300 font-extrabold px-1.5 min-w-[2.5rem] text-center text-sm">26px</span>
+                        <button onclick="changePeerFontSize(2)" title="Increase Font Size" class="p-1.5 bg-amber-950 hover:bg-amber-900 rounded-lg text-amber-100 transition font-black text-xs border border-amber-700">A+</button>
+                        <div class="flex space-x-1 ml-1 border-l-2 border-amber-800 pl-2">
+                            <button onclick="setPeerFontSize(20)" class="px-2 py-1 rounded-md bg-amber-950 hover:bg-amber-900 text-[11px] text-amber-200 font-semibold border border-amber-800">Default</button>
+                            <button onclick="setPeerFontSize(30)" class="px-2 py-1 rounded-md bg-amber-950 hover:bg-amber-900 text-[11px] text-amber-200 font-semibold border border-amber-800">Large</button>
+                            <button onclick="setPeerFontSize(40)" class="px-2 py-1 rounded-md bg-amber-500 text-slate-950 font-black text-[11px] shadow">X-Large</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 1: GUIDED SLIDE VIEW WITH HIDDEN UNTIL REVEALED ANSWERS -->
+                <div id="peerSlideContainer" class="block min-h-[360px] bg-amber-950/30 border-2 border-amber-800/80 rounded-2xl p-6 sm:p-8 flex flex-col justify-between shadow-xl">
+                    <div>
+                        <div class="flex items-center justify-between text-xs text-amber-300 font-bold mb-4 bg-slate-900/80 px-4 py-2 rounded-xl border border-amber-800/80">
+                            <span id="peerItemIndex" class="text-sm text-amber-200">Checking Item 1 of 10</span>
+                            <span id="peerItemType" class="uppercase tracking-wider px-2.5 py-1 bg-amber-950 text-amber-300 rounded-lg border border-amber-700 font-extrabold">Multiple Choice</span>
+                        </div>
+
+                        <!-- Question Text -->
+                        <h3 id="peerQuestionText" class="font-medium text-amber-50 leading-relaxed mb-6 transition-all duration-150" style="font-size: 26px;">
+                            Loading item...
+                        </h3>
+
+                        <!-- Choices List (Hidden Correctness by default until Revealed) -->
+                        <div id="peerChoicesList" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                            <!-- Rendered dynamically -->
+                        </div>
+
+                        <!-- Correct Answer Reveal Card / Button -->
+                        <div class="mt-6">
+                            <div id="peerAnswerHiddenBox" class="p-4 rounded-xl bg-slate-900/90 border-2 border-dashed border-amber-500/80 text-amber-200 flex items-center justify-between flex-wrap gap-3 shadow-lg">
+                                <div class="flex items-center space-x-3">
+                                    <div class="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/40">
+                                        <i data-lucide="help-circle" class="w-6 h-6"></i>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs uppercase tracking-widest font-black text-amber-400 block">GUESS FIRST!</span>
+                                        <span class="text-sm font-bold text-amber-100">Students guess the answer before revealing.</span>
+                                    </div>
+                                </div>
+                                <button onclick="revealPeerAnswer()" id="btnRevealAnswer" class="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 rounded-xl text-xs sm:text-sm font-black shadow-lg shadow-emerald-500/30 flex items-center space-x-2 transition transform active:scale-95 border border-emerald-300">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                    <span>Reveal Answer</span>
+                                </button>
+                            </div>
+
+                            <div id="peerAnswerRevealBox" class="hidden p-4 rounded-xl bg-emerald-950/95 border-2 border-emerald-400 text-emerald-200 flex items-center justify-between transition-all duration-300 animate-fadeIn shadow-2xl">
+                                <div class="flex items-center space-x-3">
+                                    <div class="p-2.5 bg-emerald-500 text-slate-950 rounded-xl font-black shadow-md">
+                                        <i data-lucide="check-circle" class="w-6 h-6"></i>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs uppercase tracking-widest font-black text-emerald-400 block">OFFICIAL CORRECT ANSWER</span>
+                                        <span id="peerCorrectAnswerText" class="text-base sm:text-lg font-black text-white">Option B</span>
+                                    </div>
+                                </div>
+                                <button onclick="hidePeerAnswer()" id="btnTogglePeerAnswer" class="px-3 py-1.5 bg-emerald-900 hover:bg-emerald-800 text-emerald-100 rounded-lg text-xs font-bold border border-emerald-600 transition">
+                                    Hide Answer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide Controls -->
+                    <div class="flex items-center justify-between pt-6 border-t-2 border-amber-800/60 mt-6 bg-slate-900/60 p-3 rounded-xl border border-amber-900">
+                        <button onclick="prevPeerSlide()" class="px-5 py-2.5 bg-amber-950 hover:bg-amber-900 text-amber-200 text-xs sm:text-sm font-bold rounded-xl flex items-center space-x-2 transition border-2 border-amber-700 shadow-md">
+                            <i data-lucide="chevron-left" class="w-5 h-5 text-amber-400"></i>
+                            <span>Previous Item</span>
+                        </button>
+
+                        <div class="text-xs text-amber-300/80 font-mono hidden sm:block bg-slate-950 px-3.5 py-1.5 rounded-lg border border-amber-900/80">
+                            Guess Answer &rarr; Click Reveal
+                        </div>
+
+                        <button onclick="nextPeerSlide()" class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs sm:text-sm font-black rounded-xl flex items-center space-x-2 transition shadow-lg shadow-amber-500/30 active:scale-95">
+                            <span>Next Item</span>
+                            <i data-lucide="chevron-right" class="w-5 h-5 text-slate-950"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- VIEW 2: FULL ANSWER KEY GRID VIEW -->
+                <div id="peerGridContainer" class="hidden bg-amber-950/30 border-2 border-amber-800/80 rounded-2xl p-6 sm:p-8 shadow-xl">
+                    <div class="flex items-center justify-between mb-6 pb-4 border-b-2 border-amber-800">
+                        <h3 class="text-amber-200 font-extrabold text-base flex items-center space-x-2">
+                            <i data-lucide="grid" class="w-5 h-5 text-amber-400"></i>
+                            <span>Complete Official Answer Key Grid</span>
+                        </h3>
+                        <button onclick="setPeerCheckingViewMode('slide')" class="text-xs font-bold text-amber-300 underline hover:text-amber-100">
+                            Back to Guided View
+                        </button>
+                    </div>
+
+                    <div id="peerAnswerGridContent" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 7: QUIZ BEE CHALLENGE -->
+        <div id="tab-quiz-bee" class="tab-content hidden space-y-6">
+            <div class="bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 text-white rounded-2xl p-6 sm:p-10 shadow-2xl border-2 border-fuchsia-500/60">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5 mb-8">
+                    <div class="flex items-center gap-4">
+                        <div class="p-4 bg-fuchsia-500/20 border border-fuchsia-300/50 rounded-2xl"><i data-lucide="trophy" class="w-9 h-9 text-fuchsia-300"></i></div>
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.25em] text-fuchsia-300 font-black">Live Classroom Competition</p>
+                            <h2 class="text-2xl sm:text-3xl font-black mt-1">QUIZ BEE CHALLENGE</h2>
+                            <p class="text-sm text-purple-200 mt-1">Use your loaded questions or the currently selected exam version to run a team quiz.</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="startQuizBee()" class="px-4 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-xl font-black text-sm shadow-lg transition"><i data-lucide="play" class="w-4 h-4 inline mr-1"></i> Start / Load Questions</button>
+                        <button onclick="resetQuizBee()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl font-bold text-sm transition"><i data-lucide="rotate-ccw" class="w-4 h-4 inline mr-1"></i> Reset Scores</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div class="bg-slate-900/80 border border-fuchsia-500/40 rounded-xl p-4">
+                        <label for="quizBeeTeam1Name" class="block text-xs uppercase tracking-wider text-fuchsia-200 font-black mb-2">Team 1 Name</label>
+                        <input id="quizBeeTeam1Name" type="text" value="Team 1" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white mb-3">
+                        <div class="text-4xl font-black text-fuchsia-300" id="quizBeeScore1">0</div>
+                        <button onclick="awardQuizBeePoint(1)" class="mt-3 w-full py-2 bg-fuchsia-700 hover:bg-fuchsia-600 rounded-lg font-bold text-sm">Award 1 Point</button>
+                    </div>
+                    <div class="bg-slate-900/80 border border-cyan-500/40 rounded-xl p-4">
+                        <label for="quizBeeTeam2Name" class="block text-xs uppercase tracking-wider text-cyan-200 font-black mb-2">Team 2 Name</label>
+                        <input id="quizBeeTeam2Name" type="text" value="Team 2" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white mb-3">
+                        <div class="text-4xl font-black text-cyan-300" id="quizBeeScore2">0</div>
+                        <button onclick="awardQuizBeePoint(2)" class="mt-3 w-full py-2 bg-cyan-700 hover:bg-cyan-600 rounded-lg font-bold text-sm">Award 1 Point</button>
+                    </div>
+                    <div class="bg-slate-900/80 border border-amber-500/40 rounded-xl p-4">
+                        <label for="quizBeeTeam3Name" class="block text-xs uppercase tracking-wider text-amber-200 font-black mb-2">Team 3 Name</label>
+                        <input id="quizBeeTeam3Name" type="text" value="Team 3" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white mb-3">
+                        <div class="text-4xl font-black text-amber-300" id="quizBeeScore3">0</div>
+                        <button onclick="awardQuizBeePoint(3)" class="mt-3 w-full py-2 bg-amber-700 hover:bg-amber-600 rounded-lg font-bold text-sm">Award 1 Point</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-purple-500/50 rounded-2xl p-5 sm:p-8">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+                        <span id="quizBeeProgress" class="text-xs sm:text-sm font-black text-fuchsia-200 bg-fuchsia-950/70 border border-fuchsia-700 rounded-full px-4 py-2">Question 0 of 0</span>
+                        <label class="flex items-center gap-2 text-xs sm:text-sm text-purple-100"><input id="quizBeeShuffle" type="checkbox" checked class="accent-fuchsia-500 w-4 h-4"> Shuffle question order</label>
+                    </div>
+                    <div id="quizBeeQuestion" class="text-xl sm:text-2xl font-bold leading-relaxed min-h-24 flex items-center">Click “Start / Load Questions” to begin the challenge.</div>
+                    <div id="quizBeeChoices" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6"></div>
+                    <div id="quizBeeAnswer" class="hidden mt-5 p-4 bg-emerald-950/70 border-2 border-emerald-500 rounded-xl text-emerald-100">
+                        <p class="text-xs uppercase tracking-widest font-black text-emerald-300 mb-1">Correct Answer</p>
+                        <div id="quizBeeAnswerText" class="text-lg font-black"></div>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between gap-3 mt-7 pt-5 border-t border-slate-700">
+                        <button onclick="previousQuizBeeQuestion()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl font-bold text-sm">Previous</button>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="revealQuizBeeAnswer()" class="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 rounded-xl font-bold text-sm">Reveal Answer</button>
+                            <button onclick="nextQuizBeeQuestion()" class="px-5 py-2.5 bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 rounded-xl font-black text-sm shadow-lg">Next Question <i data-lucide="chevron-right" class="w-4 h-4 inline ml-1"></i></button>
+                        </div>
+                    </div>
+                    <p class="text-xs text-purple-200/80 mt-4">Teacher tip: award a point to a team after checking its response. The answer is hidden until you select “Reveal Answer.”</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 no-print"></div>
+
+    <!-- GCash Donation Floating Button -->
+    <button onclick="toggleDonationModal()" class="fixed bottom-6 left-6 z-50 flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-full shadow-2xl hover:scale-105 transition-transform border-2 border-blue-400 no-print">
+        <i data-lucide="heart" class="w-5 h-5 text-pink-300 fill-current"></i>
+        <span class="font-bold text-sm tracking-wide">Support this Website</span>
+    </button>
+
+    <!-- GCash Donation Modal -->
+    <div id="donationModal" class="fixed inset-0 z-[60] hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity no-print">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 relative text-center overflow-y-auto max-h-[90vh]">
+            <button onclick="toggleDonationModal()" class="absolute top-4 right-4 text-slate-400 hover:text-rose-500 transition">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="smartphone" class="w-8 h-8 text-blue-600"></i>
+            </div>
+            
+            <h3 class="text-xl font-black text-slate-900 mb-1">Support My Work</h3>
+            <p class="text-sm sm:text-base font-extrabold text-blue-800 bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mb-4 leading-relaxed">Any amount of donation is greatly appreciated to support this website.</p>
+            <p class="text-xs text-slate-500 mb-6">Your donations help keep this randomizer free and operational.</p>
+            
+            <div class="bg-slate-50 border-2 border-blue-200 rounded-xl p-4 mb-6">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">GCash Account</p>
+                <p class="text-2xl font-black text-blue-600 tracking-wider select-all">0968-704-2059</p>
+            </div>
+            
+            <!-- DONOR DETAILS FORM: donor details are sent to the Google Sheets Apps Script endpoint configured below. -->
+            <form id="donorDetailsForm" class="text-left space-y-3 mb-5" onsubmit="submitDonationDetails(event)">
+                <h4 class="text-base font-black text-slate-900 border-b border-slate-200 pb-2">Donor Information</h4>
+                <div>
+                    <label for="donorName" class="block text-xs font-bold text-slate-600 mb-1">Name of Donor</label>
+                    <input id="donorName" name="donorName" type="text" required maxlength="160" autocomplete="name" placeholder="Enter donor's name" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label for="donorType" class="block text-xs font-bold text-slate-600 mb-1">Type of Donor</label>
+                    <select id="donorType" name="donorType" required onchange="toggleDonorOrganizationField()" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <option value="Individual">Individual</option>
+                        <option value="Group">Group</option>
+                    </select>
+                </div>
+                <div id="donorOrganizationWrap" class="hidden">
+                    <label for="donorOrganization" class="block text-xs font-bold text-slate-600 mb-1">Name of Organization / Group</label>
+                    <input id="donorOrganization" name="donorOrganization" type="text" maxlength="200" placeholder="Enter organization or group name" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label for="donorCountry" class="block text-xs font-bold text-slate-600 mb-1">Country</label>
+                    <input id="donorCountry" name="donorCountry" type="text" required maxlength="100" autocomplete="country-name" placeholder="Enter country" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label for="donorAmount" class="block text-xs font-bold text-slate-600 mb-1">Amount</label>
+                    <input id="donorAmount" name="donorAmount" type="text" required maxlength="100" autocomplete="amount-name" placeholder="Enter amount" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <!-- The Google Apps Script endpoint is configured privately in the JavaScript constant below, not shown in the donor form. -->
+                <p id="donorSubmitStatus" class="hidden rounded-lg p-3 text-xs font-semibold" role="status" aria-live="polite"></p>
+                <button id="donorSubmitButton" type="submit" class="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl transition">Submit</button>
+            </form>
+            <button onclick="toggleDonationModal()" class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- COMPLETE USER GUIDE MODAL: explains the workflow and every major application section. -->
+    <div id="userGuideModal" class="hidden fixed inset-0 z-[100] bg-slate-950/80 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="userGuideTitle">
+        <div class="mx-auto flex max-h-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div class="flex items-center justify-between gap-4 bg-gradient-to-r from-indigo-950 to-violet-900 px-5 py-4 text-white sm:px-7">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-indigo-200">Help Center</p>
+                    <h2 id="userGuideTitle" class="mt-1 text-xl font-black sm:text-2xl">Complete ExamShuffle Pro User Guide</h2>
+                    <p class="mt-1 text-xs text-indigo-100">Step-by-step instructions for preparing, randomizing, presenting, checking, and exporting examinations.</p>
+                </div>
+                <button type="button" onclick="toggleUserGuide(false)" class="shrink-0 rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm font-bold hover:bg-white/20" aria-label="Close user guide">Close ✕</button>
+            </div>
+            <div class="overflow-y-auto p-5 sm:p-7 text-sm leading-6 text-slate-700 space-y-6">
+                <section class="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+                    <h3 class="text-base font-black text-indigo-950">Before you begin</h3>
+                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                        <li>Open this HTML file in a modern browser such as Chrome, Edge, or Firefox. Most functions run locally in the browser.</li>
+                        <li>Work through the numbered tabs in order when preparing a new examination.</li>
+                        <li>Your questions, header details, logo links, and generated versions are saved in this browser's local storage. This is not cloud synchronization; another browser or device has a separate copy.</li>
+                        <li>Keep a separate backup of important question banks and exported examinations. Clearing the cache removes this application's saved state.</li>
+                    </ul>
+                </section>
+                <section>
+                    <h3 class="text-lg font-black text-slate-900">1. Exam Details</h3>
+                    <p>Enter the school name, department, examination title, subject, teacher/instructor, term or school year, and general instructions. Check the Header Preview while you type; it reflects the details that will appear on the examination.</p>
+                    <p class="mt-2"><strong>Left-Side Logo:</strong> paste a direct, publicly accessible image URL into the left logo field. This image appears on the left of the header, close to the heading text. <strong>Right-Side Logo:</strong> paste a separate direct image URL into the right logo field. Either logo can be used independently. PNG, JPG/JPEG, SVG, and WebP are common supported formats, subject to the image host's permissions.</p>
+                    <p class="mt-2">If a logo does not appear, check that the URL points directly to an image and that the host allows the browser to load it. Review the printed preview before exporting.</p>
+                </section>
+                <section>
+                    <h3 class="text-lg font-black text-slate-900">2. Upload / Input Questions</h3>
+                    <p>Use the question-input tools available in this section to add questions manually or import supported content. Follow the format and file-type notes shown on the page. After importing, confirm that the questions, choices, question types, and correct answers were interpreted correctly before continuing.</p>
+                    <p class="mt-2">If text parsing is available, review the parsed result carefully; unusual formatting in a source document may require manual correction. Do not assume an imported answer key is correct until you verify it.</p>
+                </section>
+                <section>
+                    <h3 class="text-lg font-black text-slate-900">3. Review &amp; Edit Items</h3>
+                    <p>Inspect the full question bank. Edit question wording, select the correct question type, update choices, set the correct answer, add or remove choices where applicable, and delete questions that should not be included. Recheck numbering and answer keys after editing.</p>
+                    <p class="mt-2">Question types may include multiple choice, true/false, and identification. Use the fields provided for the selected type. Keep multiple-choice options distinct and ensure that the correct answer matches one of the displayed choices.</p>
+                </section>
+                <section>
+                    <h3 class="text-lg font-black text-slate-900">4. Randomize &amp; Export</h3>
+                    <p>Use the randomization controls to shuffle the current question set and, where enabled, the answer choices. Choose the number of versions before generating multiple versions. Review each generated version using the version selector/tabs and confirm that the question order and answer key remain correct.</p>
+                    <p class="mt-2">Use the available export controls to produce the supported output format, such as a Word document. Check the exported file before printing or distributing it. If an answer key is included, make sure the setting matches your intended output.</p>
+                </section>
+                <section>
+                    <h3 class="text-lg font-black text-slate-900">5. Classroom Mode</h3>
+                    <p>Open Classroom Mode when displaying questions to students on a projector or classroom screen. Use the previous/next controls to navigate, the timer controls to start, pause, or reset timing, and the text-size controls to improve visibility from the back of the room. Test the display before class begins.</p>
+                </section>
+                <section>
+                    <h3 class="text-lg font-black text-slate-900">6. Peer Checking Mode</h3>
+                    <p>Use Peer Checking Mode to guide students through checking responses. Choose the desired generated version, use the guided slide or grid view where available, adjust text size for readability, and reveal answers only at the appropriate point in the activity. Explain the checking rules before students begin and supervise score recording.</p>
+                </section>
+                <section>
+                    <h3 class="text-lg font-black text-slate-900">7. Quiz Bee Challenge</h3>
+                    <p>Load questions into Quiz Bee from the available exam version or question bank. Shuffle the questions if desired, set the team names, and begin the challenge. Navigate with Previous and Next Question. Keep the answer hidden while teams deliberate, then use Reveal Answer to display it. Award points to the appropriate team with the scoring controls. Use Reset Scores to restart the scoreboard when needed.</p>
+                    <p class="mt-2">Agree on rules before starting—for example, how teams signal, how long they have to answer, and whether a missed question can be stolen. The scoreboard is an in-page activity aid, so record final results separately if they must be retained.</p>
+                </section>
+                <section>
+                    <h3 class="text-lg font-black text-slate-900">Top-bar controls and saving</h3>
+                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                        <li><strong>Items:</strong> displays the number of questions currently loaded.</li>
+                        <li><strong>Full Screen:</strong> enters or exits the browser's full-screen mode. Your browser may require a user click and may provide its own exit hint; press Esc to leave full screen when supported.</li>
+                        <li><strong>User Guide:</strong> opens this guide. Use Close to return to the app.</li>
+                        <li><strong>Active Key:</strong> indicates the selected generated version when that indicator is visible.</li>
+                        <li><strong>Clear Cache:</strong> asks for confirmation, then removes this app's saved local state and restores its default sample questions and original header values. Use it only when you intend to reset the app.</li>
+                    </ul>
+                    <p class="mt-2">Changes are saved automatically to the browser's local storage when supported. Avoid clearing browser site data if you need to retain your locally saved work.</p>
+                </section>
+                <section class="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <h3 class="text-base font-black text-amber-950">Troubleshooting checklist</h3>
+                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                        <li><strong>Logo missing:</strong> use a direct image link and test it in a new browser tab.</li>
+                        <li><strong>Wrong header or answers:</strong> return to Exam Details or Review &amp; Edit Items and check the source fields before regenerating or exporting.</li>
+                        <li><strong>Export looks different:</strong> open the exported document and inspect page breaks, margins, images, and answer-key settings before printing.</li>
+                        <li><strong>Saved work is missing:</strong> reopen the file in the same browser profile and device where you made the changes; local storage is not shared between devices.</li>
+                        <li><strong>Full screen does not start:</strong> click the button directly and allow the browser to perform the full-screen request.</li>
+                    </ul>
+                </section>
+                <p class="text-xs text-slate-500">Recommended workflow: enter exam details → add/import questions → review every item and answer → generate and inspect versions → export and proofread → use Classroom, Peer Checking, or Quiz Bee modes as needed.</p>
+            </div>
+            <div class="flex justify-end border-t border-slate-200 bg-slate-50 px-5 py-3 sm:px-7">
+                <button type="button" onclick="toggleUserGuide(false)" class="rounded-lg bg-indigo-700 px-5 py-2 font-bold text-white hover:bg-indigo-600">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full-screen and guide controls are intentionally separate from exam content and do not alter the question bank. -->
+    <footer style="text-align: center; padding: 3px; background-color: DarkSalmon; color: white;">Powered by: Desk Bhuddy | IT solutions made it for you | &copy; copyright 2026</footer>
+
+    <!-- Application Engine JavaScript Logic -->
+    <!--
+
+    <script>
+    
+    </script>
+
+    -->
+    <!-- 2. Code for External JavaScript -->
+    <script src="script.js" defer></script>
+</body>
+</html>
