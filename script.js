@@ -1,4 +1,3 @@
-
 (() => {
 
         // Global Application State Variables
@@ -1427,55 +1426,113 @@
         const DONOR_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwa7PURy-pOOsxWuYtM7M4PtDh7Ka1wPI5f6UcecUaagR2LUQj9tTR2AhdSk_BJu9Wwww/exec';
 
         // Submit donor details to the configured Google Apps Script Web App.
+        // IMPORTANT: Browser "no-cors" requests cannot read the Apps Script response.
+        // This function therefore confirms only that the browser dispatched the request;
+        // it does not claim that Google Sheets saved the row. The Apps Script doPost(e)
+        // must read e.parameter (URL-encoded form fields) and append the values to the sheet.
         async function submitDonationDetails(event) {
             if (event) event.preventDefault();
+
             const form = document.getElementById('donorDetailsForm');
             const status = document.getElementById('donorSubmitStatus');
             const button = document.getElementById('donorSubmitButton');
-            if (!form || !status || !button) return;
+            if (!form || !status || !button) {
+                console.error('Donor form elements are missing from the HTML.');
+                return;
+            }
+
             const endpoint = DONOR_APPS_SCRIPT_URL.trim();
-            const donorType = document.getElementById('donorType').value;
-            const organization = document.getElementById('donorOrganization').value.trim();
+            const donorTypeElement = document.getElementById('donorType');
+            const organizationElement = document.getElementById('donorOrganization');
+            const donorNameElement = document.getElementById('donorName');
+            const countryElement = document.getElementById('donorCountry');
+            const amountElement = document.getElementById('donorAmount');
+
             const showStatus = (message, success) => {
                 status.textContent = message;
-                status.className = 'rounded-lg p-3 text-xs font-semibold ' + (success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200');
+                status.className = 'rounded-lg p-3 text-xs font-semibold ' +
+                    (success
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : 'bg-rose-50 text-rose-800 border border-rose-200');
             };
+
             if (!form.reportValidity()) return;
-            if (!endpoint || endpoint === 'PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE' || !/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec(?:\?.*)?$/.test(endpoint)) {
-                showStatus('Donor submission is not configured yet. The website administrator must add the deployed Google Sheets endpoint in the script.', false);
-                console.error('Configure DONOR_APPS_SCRIPT_URL with the deployed Google Apps Script Web App URL ending in /exec.');
+
+            if (!endpoint ||
+                endpoint === 'PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE' ||
+                !/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec(?:\?.*)?$/.test(endpoint)) {
+                showStatus('Google Sheets sync is not configured. Please check the deployed Apps Script Web App URL in the HTML.', false);
+                console.error('Invalid DONOR_APPS_SCRIPT_URL. Use the deployed Google Apps Script Web App URL ending in /exec.');
                 return;
             }
+
+            if (!donorTypeElement || !organizationElement || !donorNameElement || !countryElement || !amountElement) {
+                showStatus('The donor form is incomplete. Please contact the website administrator.', false);
+                console.error('One or more donor form fields are missing.');
+                return;
+            }
+
+            const donorType = donorTypeElement.value;
+            const organization = organizationElement.value.trim();
+
             if (donorType === 'Group' && !organization) {
                 showStatus('Please enter the name of the organization or group.', false);
-                document.getElementById('donorOrganization').focus();
+                organizationElement.focus();
                 return;
             }
-            const payload = new URLSearchParams({
-                donorName: document.getElementById('donorName').value.trim(),
-                donorType: donorType,
-                donorOrganization: donorType === 'Group' ? organization : '',
-                country: document.getElementById('donorCountry').value.trim(),
-                amount: document.getElementById('donorAmount').value.trim(),
-                source: 'ExamShuffle Pro Support My Work',
-                submittedAt: new Date().toISOString()
-            });
+
+            // Keep field names compatible with Google Apps Script handlers that read e.parameter.
+            // Alias fields are included because different versions of doPost(e) may use different
+            // column names. The Apps Script must explicitly map these fields to the desired columns.
+            const submittedAt = new Date().toISOString();
+            const donorName = donorNameElement.value.trim();
+            const country = countryElement.value.trim();
+            const amount = amountElement.value.trim();
+            const donorOrganization = donorType === 'Group' ? organization : '';
+
+            const payload = new URLSearchParams();
+            payload.set('donorName', donorName);
+            payload.set('name', donorName);
+            payload.set('donorType', donorType);
+            payload.set('donorOrganization', donorOrganization);
+            payload.set('organization', donorOrganization);
+            payload.set('country', country);
+            payload.set('amount', amount);
+            payload.set('source', 'ExamShuffle Pro Support My Work');
+            payload.set('submittedAt', submittedAt);
+            payload.set('timestamp', submittedAt);
+
             button.disabled = true;
+            const originalButtonText = button.textContent;
             button.textContent = 'Submitting...';
+            showStatus('Sending donor information to Google Sheets…', true);
+
             try {
-                // Apps Script accepts URL-encoded POST data. no-cors avoids browser CORS blocking;
-                // because the response is opaque, a resolved request means it was sent, not independently verified.
-                await fetch(endpoint, { method: 'POST', mode: 'no-cors', body: payload });
-                showStatus('Thank you for your generous support! Your donation will help maintain, enhance, and continuously improve this educational application. Your kindness and generosity contribute to creating more meaningful, engaging, and interactive classroom activities that inspire students to learn, explore, and achieve their full potential. Every contribution, no matter how small, makes a difference in building a better learning experience for everyone.', true);
-                form.reset();
-                document.getElementById('donorType').value = 'Individual';
-                toggleDonorOrganizationField();
+                // Send as application/x-www-form-urlencoded data. This is a "simple" request
+                // that can be dispatched cross-origin with no-cors to Apps Script without a
+                // browser preflight. Apps Script doPost(e) receives these fields in e.parameter.
+                // Do not switch this to JSON unless the Apps Script is also changed to parse JSON.
+                await fetch(endpoint, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-store',
+                    redirect: 'follow',
+                    body: payload
+                });
+
+                // A no-cors response is opaque: the browser cannot verify a row was written.
+                // Use truthful status text and do not clear the form, so the user can retry
+                // or copy the details if the Apps Script deployment is misconfigured.
+                showStatus(
+                    'The request was sent from this browser, but Google does not allow this page to confirm that the row was saved. If the row does not appear, check that the Apps Script Web App is deployed for access by anyone, that its doPost(e) reads e.parameter, that the spreadsheet ID and tab name are correct, and that you deployed the latest version. Your entries remain in the form.',
+                    true
+                );
             } catch (error) {
                 console.error('Unable to send donor information to Google Sheets.', error);
-                showStatus('The submission could not be sent. Please check the website administrator’s Apps Script deployment and your internet connection, then try again.', false);
+                showStatus('The request could not be sent. Check your internet connection and the deployed Apps Script Web App URL, then try again. Your entries remain in the form.', false);
             } finally {
                 button.disabled = false;
-                button.textContent = 'Submit Another Donation';
+                button.textContent = originalButtonText || 'Submit';
             }
         }
 
