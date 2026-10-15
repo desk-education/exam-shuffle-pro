@@ -14,11 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
     <!-- Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<!--
-    <style>
-        
-    </style>
--->
+
     <!-- 1. Code for External CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -646,8 +642,28 @@ Answer: Carbon Dioxide"></textarea>
                             <p class="text-sm text-purple-200 mt-1">Use your loaded questions or the currently selected exam version to run a team quiz.</p>
                         </div>
                     </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="startQuizBee()" class="px-4 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-xl font-black text-sm shadow-lg transition"><i data-lucide="play" class="w-4 h-4 inline mr-1"></i> Start / Load Questions</button>
+                    <div class="flex flex-wrap items-center gap-2">
+
+                        <!-- Quiz Bee Question Font Size: adjust question and option text for clear viewing from the back of the classroom. -->
+                        <label for="quizBeeFontSize" class="text-xs font-black uppercase tracking-wide text-fuchsia-200">Question Font</label>
+                        <select id="quizBeeFontSize" onchange="applyQuizBeeFontSize(this.value)" aria-label="Adjust Quiz Bee question and option font size" title="Adjust the Quiz Bee question and options font size" class="rounded-xl border border-fuchsia-400 bg-slate-950 px-3 py-2.5 text-sm font-black text-fuchsia-100 focus:outline-none focus:ring-2 focus:ring-fuchsia-300">
+                            <option value="20">Small (20 px)</option>
+                            <option value="24" selected>Medium (24 px)</option>
+                            <option value="28">Large (28 px)</option>
+                            <option value="32">Extra Large (32 px)</option>
+                            <option value="36">Maximum (36 px)</option>
+                        </select>
+                        <select id="quizBeeTimerDuration" onchange="resetQuizBeeTimer()" aria-label="Select Quiz Bee countdown duration" class="rounded-xl border border-yellow-300 bg-slate-950 px-3 py-2.5 text-sm font-black text-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-300">
+                            <option value="25" selected>25 seconds</option>
+                            <option value="30">30 seconds</option>
+                            <option value="40">40 seconds</option>
+                            
+                        </select>
+                        <!-- <button onclick="startQuizBee()" class="px-4 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-xl font-black text-sm shadow-lg transition"><i data-lucide="play" class="w-4 h-4 inline mr-1"></i> Start / Load Questions</button>
+                        -->
+                        <!-- Quiz Bee Countdown Duration: choose the time limit for each round. -->
+                        <!--<label for="quizBeeTimerDuration" class="text-xs font-black uppercase tracking-wide text-yellow-200">Countdown</label> -->
+                        
                         <button onclick="resetQuizBee()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl font-bold text-sm transition"><i data-lucide="rotate-ccw" class="w-4 h-4 inline mr-1"></i> Reset Scores</button>
                     </div>
                 </div>
@@ -676,7 +692,15 @@ Answer: Carbon Dioxide"></textarea>
                 <div class="bg-slate-900/80 border border-purple-500/50 rounded-2xl p-5 sm:p-8">
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
                         <span id="quizBeeProgress" class="text-xs sm:text-sm font-black text-fuchsia-200 bg-fuchsia-950/70 border border-fuchsia-700 rounded-full px-4 py-2">Question 0 of 0</span>
-                        <label class="flex items-center gap-2 text-xs sm:text-sm text-purple-100"><input id="quizBeeShuffle" type="checkbox" checked class="accent-fuchsia-500 w-4 h-4"> Shuffle question order</label>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label class="flex items-center gap-2 text-xs sm:text-sm text-purple-100"><input id="quizBeeShuffle" type="checkbox" checked class="accent-fuchsia-500 w-4 h-4"> Shuffle question order</label>
+                            <!-- Quiz Bee Countdown Timer: independent from the app's global timer. -->
+                            <div id="quizBeeTimerPanel" class="flex flex-wrap items-center gap-2 rounded-xl border-2 border-yellow-300 bg-slate-950 px-3 py-2 shadow-lg shadow-yellow-500/20" role="group" aria-label="Quiz Bee countdown timer">
+                                <span id="quizBeeTimerDisplay" class="min-w-[2.5rem] text-center font-mono text-2xl sm:text-3xl font-black leading-none text-yellow-300 tabular-nums" role="timer" aria-label="Seconds remaining" aria-live="polite">25</span>
+                                <button id="quizBeeTimerStartButton" type="button" onclick="toggleQuizBeeTimer()" aria-label="Start or pause Quiz Bee countdown" class="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-black text-white transition">Start</button>
+                                <button id="quizBeeTimerStartButton" type="button" onclick="startQuizBee()" aria-label="Start or pause Quiz Bee countdown" class="px-4 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-xl font-black text-sm shadow-lg transition"><i data-lucide="play" class="w-4 h-4 inline mr-1"></i>Start Quiz Bee!</button>
+                            </div>
+                        </div>
                     </div>
                     <div id="quizBeeQuestion" class="text-xl sm:text-2xl font-bold leading-relaxed min-h-24 flex items-center">Click “Start / Load Questions” to begin the challenge.</div>
                     <div id="quizBeeChoices" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6"></div>
@@ -851,13 +875,7 @@ Answer: Carbon Dioxide"></textarea>
     <!-- Full-screen and guide controls are intentionally separate from exam content and do not alter the question bank. -->
     <footer style="text-align: center; padding: 3px; background-color: DarkSalmon; color: white;">Powered by: Desk Bhuddy | IT solutions made it for you | &copy; copyright 2026</footer>
 
-    <!-- Application Engine JavaScript Logic -->
-    
-    <!--
-    <script>
-    
-    </script>
-      -->
+    <!-- Application Engine JavaScript Logic here-->
     <!-- 2. Code for External JavaScript -->
     <script src="script.js" defer></script>
 </body>
