@@ -1202,6 +1202,175 @@
         let quizBeeIndex = 0;
         let quizBeeScores = [0, 0, 0];
         let quizBeeAnswerRevealed = false;
+        // Keep the welcome instruction visible until the teacher starts/loads the Quiz Bee challenge.
+        let quizBeeChallengeStarted = false;
+
+        // Quiz Bee Countdown Timer State: counts down from the selected round duration.
+        // This timer is independent from the app's global timer.
+        let quizBeeTimerInterval = null;
+        let quizBeeTimerSeconds = 25;
+
+        // Current Quiz Bee question and option font size in pixels. The selected size is reapplied whenever a question is rendered.
+        let quizBeeCurrentFontSize = 24;
+
+        // Apply the selected font size to the current question and every answer option so students can read them from a distance.
+        // Inline !important styles are used here intentionally so Tailwind utility classes or other stylesheet rules cannot override the teacher's selection.
+        function applyQuizBeeFontSize(value) {
+            const requestedSize = Number.parseInt(value, 10);
+            quizBeeCurrentFontSize = [20, 24, 28, 32, 36].includes(requestedSize) ? requestedSize : 24;
+
+            const questionEl = document.getElementById('quizBeeQuestion');
+            const choicesEl = document.getElementById('quizBeeChoices');
+            const fontSizeSelect = document.getElementById('quizBeeFontSize');
+            const fontSize = `${quizBeeCurrentFontSize}px`;
+            const lineHeight = '1.35';
+
+            // Keep the selector synchronized with the size currently being applied.
+            if (fontSizeSelect && Number.parseInt(fontSizeSelect.value, 10) !== quizBeeCurrentFontSize) {
+                fontSizeSelect.value = String(quizBeeCurrentFontSize);
+            }
+
+            // Apply the selected size directly to the question container with priority over ordinary CSS rules.
+            if (questionEl) {
+                questionEl.style.setProperty('font-size', fontSize, 'important');
+                questionEl.style.setProperty('line-height', lineHeight, 'important');
+            }
+
+            // Apply the selected size to the options container and every nested option element.
+            // This also covers the option letter badges and any nested text, preventing small inherited text from remaining unchanged.
+            if (choicesEl) {
+                choicesEl.style.setProperty('font-size', fontSize, 'important');
+                choicesEl.style.setProperty('line-height', lineHeight, 'important');
+
+                choicesEl.querySelectorAll('*').forEach((element) => {
+                    element.style.setProperty('font-size', fontSize, 'important');
+                    element.style.setProperty('line-height', lineHeight, 'important');
+                });
+            }
+        }
+
+        // Connect the Question Font control using both input and change events for consistent behavior across browsers.
+        // The inline onchange attribute remains in place for compatibility with the existing page structure.
+        function initializeQuizBeeFontSizeControl() {
+            const fontSizeSelect = document.getElementById('quizBeeFontSize');
+            if (!fontSizeSelect) return;
+
+            // Avoid registering duplicate listeners if initialization is called more than once.
+            if (fontSizeSelect.dataset.fontSizeControlInitialized === 'true') {
+                applyQuizBeeFontSize(fontSizeSelect.value);
+                return;
+            }
+
+            fontSizeSelect.addEventListener('input', function () {
+                applyQuizBeeFontSize(this.value);
+            });
+            fontSizeSelect.addEventListener('change', function () {
+                applyQuizBeeFontSize(this.value);
+            });
+            fontSizeSelect.dataset.fontSizeControlInitialized = 'true';
+            applyQuizBeeFontSize(fontSizeSelect.value || quizBeeCurrentFontSize);
+        }
+
+        // Read the selected countdown duration, falling back to 25 seconds if needed.
+        function getQuizBeeTimerDuration() {
+            const durationSelect = document.getElementById('quizBeeTimerDuration');
+            const selectedDuration = durationSelect ? Number.parseInt(durationSelect.value, 10) : 25;
+            return [25, 30, 40].includes(selectedDuration) ? selectedDuration : 25;
+        }
+
+        // Format and display the Quiz Bee countdown as two digits only (00-40).
+        function updateQuizBeeTimerDisplay() {
+            const seconds = String(Math.max(0, quizBeeTimerSeconds)).padStart(2, '0');
+            const display = document.getElementById('quizBeeTimerDisplay');
+            if (display) display.textContent = seconds;
+        }
+
+        // Start or resume the Quiz Bee countdown without affecting the global app timer.
+        function startQuizBeeTimer() {
+            if (quizBeeTimerInterval !== null) return;
+
+            // If the countdown has reached zero, load the currently selected duration before starting again.
+            if (quizBeeTimerSeconds <= 0) {
+                quizBeeTimerSeconds = getQuizBeeTimerDuration();
+                updateQuizBeeTimerDisplay();
+            }
+
+            const startButton = document.getElementById('quizBeeTimerStartButton');
+            const pauseButton = document.getElementById('quizBeeTimerPauseButton');
+            // Keep the single Start button enabled so it can be pressed again to pause the countdown.
+            if (startButton) {
+                startButton.disabled = false;
+                startButton.textContent = 'Pause';
+                startButton.setAttribute('aria-label', 'Pause Quiz Bee countdown');
+                startButton.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
+                startButton.classList.add('bg-amber-600', 'hover:bg-amber-500');
+            }
+            if (pauseButton) pauseButton.disabled = false;
+
+            quizBeeTimerInterval = setInterval(() => {
+                quizBeeTimerSeconds = Math.max(0, quizBeeTimerSeconds - 1);
+                updateQuizBeeTimerDisplay();
+
+                // Stop automatically when the countdown reaches zero and notify the teacher.
+                if (quizBeeTimerSeconds <= 0) {
+                    pauseQuizBeeTimer();
+                    const display = document.getElementById('quizBeeTimerDisplay');
+                    const panel = document.getElementById('quizBeeTimerPanel');
+                    if (display) display.textContent = '00:00';
+                    if (panel) {
+                        panel.classList.remove('border-yellow-300');
+                        panel.classList.add('border-rose-500');
+                    }
+                    if (typeof showToast === 'function') {
+                        showToast('Time is up! The Quiz Bee countdown has ended.', 'error');
+                    }
+                }
+            }, 1000);
+        }
+
+        // Toggle the single Quiz Bee timer button: first press starts, next press pauses, and another resumes.
+        function toggleQuizBeeTimer() {
+            if (quizBeeTimerInterval !== null) {
+                pauseQuizBeeTimer();
+            } else {
+                startQuizBeeTimer();
+            }
+        }
+
+        // Pause the Quiz Bee countdown while preserving the remaining time.
+        function pauseQuizBeeTimer() {
+            if (quizBeeTimerInterval !== null) {
+                clearInterval(quizBeeTimerInterval);
+                quizBeeTimerInterval = null;
+            }
+            const startButton = document.getElementById('quizBeeTimerStartButton');
+            const pauseButton = document.getElementById('quizBeeTimerPauseButton');
+            if (startButton) {
+                startButton.disabled = false;
+                startButton.textContent = quizBeeTimerSeconds <= 0 ? 'Start' : 'Resume';
+                startButton.setAttribute('aria-label', quizBeeTimerSeconds <= 0 ? 'Start Quiz Bee countdown' : 'Resume Quiz Bee countdown');
+                startButton.classList.remove('bg-amber-600', 'hover:bg-amber-500');
+                startButton.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+            }
+            if (pauseButton) pauseButton.disabled = true;
+        }
+
+        // Reset and stop the Quiz Bee countdown using the selected 25-, 30-, or 40-second duration.
+        function resetQuizBeeTimer() {
+            pauseQuizBeeTimer();
+            quizBeeTimerSeconds = getQuizBeeTimerDuration();
+            const panel = document.getElementById('quizBeeTimerPanel');
+            if (panel) {
+                panel.classList.remove('border-rose-500');
+                panel.classList.add('border-yellow-300');
+            }
+            const startButton = document.getElementById('quizBeeTimerStartButton');
+            if (startButton) {
+                startButton.textContent = 'Start';
+                startButton.setAttribute('aria-label', 'Start Quiz Bee countdown');
+            }
+            updateQuizBeeTimerDisplay();
+        }
 
         // Load the current generated exam version (or question bank) into Quiz Bee mode.
         function startQuizBee() {
@@ -1212,6 +1381,7 @@
             }
 
             quizBeeQuestions = JSON.parse(JSON.stringify(source));
+            quizBeeChallengeStarted = true;
             if (document.getElementById('quizBeeShuffle')?.checked) {
                 for (let i = quizBeeQuestions.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
@@ -1231,11 +1401,13 @@
             const progressEl = document.getElementById('quizBeeProgress');
             const answerBox = document.getElementById('quizBeeAnswer');
 
-            if (!quizBeeQuestions.length) {
+            if (!quizBeeChallengeStarted || !quizBeeQuestions.length) {
                 questionEl.textContent = 'Click “Start / Load Questions” to begin the challenge.';
                 choicesEl.innerHTML = '';
                 progressEl.textContent = 'Question 0 of 0';
                 answerBox.classList.add('hidden');
+                // Reapply the teacher's selected font size even while the welcome instruction is displayed.
+                applyQuizBeeFontSize(quizBeeCurrentFontSize);
                 return;
             }
 
@@ -1244,6 +1416,8 @@
                 choicesEl.innerHTML = '';
                 progressEl.textContent = `Completed ${quizBeeQuestions.length} questions`;
                 answerBox.classList.add('hidden');
+                // Keep the selected font size consistent on the completion screen as well.
+                applyQuizBeeFontSize(quizBeeCurrentFontSize);
                 return;
             }
 
@@ -1257,11 +1431,13 @@
                 choicesEl.innerHTML = item.choices.map((choice, index) => `
                     <div class="bg-slate-950 border border-slate-700 rounded-xl p-4 flex items-start gap-3">
                         <span class="shrink-0 w-8 h-8 rounded-lg bg-purple-900 text-purple-100 flex items-center justify-center font-black">${String.fromCharCode(65 + index)}</span>
-                        <span class="text-slate-100 pt-1">${escapeHtml(String(choice))}</span>
+                        <span class="quizBeeChoiceText text-slate-100 pt-1">${escapeHtml(String(choice))}</span>
                     </div>`).join('');
             } else {
-                choicesEl.innerHTML = '<div class="sm:col-span-2 p-4 rounded-xl border border-slate-700 bg-slate-950 text-purple-200">Short answer / identification question — teams should answer aloud or write their response.</div>';
+                choicesEl.innerHTML = '<div class="quizBeeShortAnswerText sm:col-span-2 p-4 rounded-xl border border-slate-700 bg-slate-950 text-purple-200">Short answer / identification question — teams should answer aloud or write their response.</div>';
             }
+            // Reapply the selected font size after rendering new question and option elements.
+            applyQuizBeeFontSize(quizBeeCurrentFontSize);
             document.getElementById('quizBeeAnswerText').textContent = '';
         }
 
@@ -1278,11 +1454,17 @@
             quizBeeAnswerRevealed = true;
         }
 
-        // Move forward through the challenge question set.
+        // Move forward through the challenge question set and automatically restart the countdown for the next question.
         function nextQuizBeeQuestion() {
             if (!quizBeeQuestions.length) { startQuizBee(); return; }
             if (quizBeeIndex < quizBeeQuestions.length) quizBeeIndex++;
             renderQuizBeeQuestion();
+
+            // Reset the selected countdown duration and start it automatically for each available next question.
+            if (quizBeeIndex < quizBeeQuestions.length) {
+                resetQuizBeeTimer();
+                startQuizBeeTimer();
+            }
         }
 
         // Return to the previous Quiz Bee question when one exists.
@@ -1505,7 +1687,7 @@
             button.disabled = true;
             const originalButtonText = button.textContent;
             button.textContent = 'Submitting...';
-            showStatus('Sending donor information to Google Sheets…', true);
+            showStatus('Sending donor/s information…', true);
 
             try {
                 // Send as application/x-www-form-urlencoded data. This is a "simple" request
@@ -1524,11 +1706,11 @@
                 // Use truthful status text and do not clear the form, so the user can retry
                 // or copy the details if the Apps Script deployment is misconfigured.
                 showStatus(
-                    'The request was sent from this browser, but Google does not allow this page to confirm that the row was saved. If the row does not appear, check that the Apps Script Web App is deployed for access by anyone, that its doPost(e) reads e.parameter, that the spreadsheet ID and tab name are correct, and that you deployed the latest version. Your entries remain in the form.',
+                    'Thank you for your generous support! Your donation helps maintain and improve this educational application, creating more fun, meaningful, and interactive learning experiences for students. Every contribution, no matter how small, makes a difference!',
                     true
                 );
             } catch (error) {
-                console.error('Unable to send donor information to Google Sheets.', error);
+                console.error('Unable to send donor information to the web developer.', error);
                 showStatus('The request could not be sent. Check your internet connection and the deployed Apps Script Web App URL, then try again. Your entries remain in the form.', false);
             } finally {
                 button.disabled = false;
@@ -1563,6 +1745,10 @@
 
         // Keep application internals inside a private closure. Only functions used by
         // the existing inline HTML event handlers are exposed on window.
+        // Initialize the Quiz Bee font-size selector after the page elements have been parsed.
+        // The main application script runs after the Quiz Bee controls, so the selected size can be applied immediately.
+        initializeQuizBeeFontSizeControl();
+
         const publicHandlers = {
             addChoice: addChoice,
             addNewQuestion: addNewQuestion,
@@ -1608,7 +1794,12 @@
             previousQuizBeeQuestion: previousQuizBeeQuestion,
             revealQuizBeeAnswer: revealQuizBeeAnswer,
             awardQuizBeePoint: awardQuizBeePoint,
-            resetQuizBee: resetQuizBee
+            resetQuizBee: resetQuizBee,
+            // Expose the Quiz Bee stopwatch handlers so its inline buttons can call them outside the application closure.
+            startQuizBeeTimer: startQuizBeeTimer,
+            toggleQuizBeeTimer: toggleQuizBeeTimer,
+            pauseQuizBeeTimer: pauseQuizBeeTimer,
+            resetQuizBeeTimer: resetQuizBeeTimer
         };
         Object.keys(publicHandlers).forEach(handlerName => {
             window[handlerName] = publicHandlers[handlerName];
