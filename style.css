@@ -54,17 +54,72 @@ body {
             .no-print {
                 display: none !important;
             }
+
+            /* Keep the application title and subtitle out of the printed exam paper. */
+            #mainHeader,
+            #mainHeader h1,
+            #mainHeader p {
+                display: none !important;
+                visibility: hidden !important;
+            }
+
+            /* Do not print the application's footer tag or branding on the exam paper. */
+            body > footer,
+            footer {
+                display: none !important;
+                visibility: hidden !important;
+            }
+
             .print-only {
                 display: block !important;
             }
             .page-break {
                 page-break-after: always;
             }
-            .exam-paper {
-                box-shadow: none !important;
+
+            /* Print only the exam paper from the Randomize & Export tab. */
+            #tab-randomize {
+                display: block !important;
+                visibility: visible !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* Do not print the Randomization & Export Engine controls panel. */
+            #tab-randomize > div:first-child {
+                display: none !important;
+            }
+
+            /* Do not print the export toolbar containing Direct Print / PDF and Word buttons. */
+            #tab-randomize > div:nth-child(2) {
+                display: none !important;
+            }
+
+            /* Remove the gray preview background and screen-only spacing around the paper. */
+            #tab-randomize > div:nth-child(3) {
+                display: block !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
                 border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                overflow: visible !important;
+            }
+
+            .exam-paper {
+                display: block !important;
+                visibility: visible !important;
+                box-shadow: none !important;
+                background: white !important;
+                border: none !important;
+                border-radius: 0 !important;
                 padding: 0 !important;
                 margin: 0 !important;
                 width: 100% !important;
+                max-width: none !important;
+                min-height: 0 !important;
+                color: black !important;
             }
         }
